@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 import json
 from typing import Tuple
+import io
+import lmdb
 
 
 _json_path = Path('train_test_split.json')
@@ -28,20 +30,26 @@ moco_transform = T.Compose([
 ])
 
 base_path = '/scratch/cv-course-group-5/data/dataset_jpg'
-dst_root   = Path(base_path + '/preprocessed_dataset')
+dst_root   = Path(base_path + '/lmdb')
 
 class CellDataset(Dataset):
     def __init__(self, video_list=train_list, path_to_videos=dst_root, transform=T.ToTensor()):
-        self.image_paths = []
-        self.path_to_videos = path_to_videos
+        self.env = lmdb.open(str(path_to_videos), readonly=True, lock=False)
+        with self.env.begin() as txn:
+            lmdb_keys = txn.get(b"__keys__").decode().split("\n")
         self.transform = transform
+        self.keys = []
+        video_names = [video["name"] for video in video_list]
 
-        for video_dict in video_list:
-            dst_path = path_to_videos / str(video_dict['name']) / 'images'
-            self.image_paths += dst_path.glob('*.jpg')
+        for key in lmdb_keys:
+            for video_name in video_names:
+                if key.startswith(f"{video_name}/"):
+                    self.keys.append(key)
+        print(len(self.keys))
+
 
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.keys)
 
     def __getitem__(self, idx):
         """
@@ -49,8 +57,10 @@ class CellDataset(Dataset):
         :return: Item at idx after applying transform
         :rtype: Tuple[torch.Tensor]
         """
-        img_path = self.image_paths[idx]
-        img = Image.open(img_path).convert("RGB")
+        key = self.keys[idx]
+        with self.env.begin() as txn:
+            img_bytes = txn.get(key.encode("utf-8"))
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
         view1 = self.transform(img)
         view2 = self.transform(img)
