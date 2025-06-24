@@ -1,10 +1,19 @@
-from torchvision import transforms as T
-from pathlib import Path
 from PIL import Image
-import torch
+from pathlib import Path
 from torch.utils.data import Dataset
-import os
+from torchvision import transforms as T
 import json
+
+
+_json_path = Path('train_test_split.json')
+
+# Load the file
+with open(_json_path, 'r') as f:
+    _split_data = json.load(f)
+
+# Access the train and test entries
+train_list = _split_data.get("train", [])
+test_list = _split_data.get("test", [])
 
 moco_transform = T.Compose([
     T.RandomHorizontalFlip(p=0.5),      # flip left-right with 50% probability
@@ -16,8 +25,11 @@ moco_transform = T.Compose([
                 std=[0.229, 0.224, 0.225]),
 ])
 
+base_path = '/scratch/cv-course-group-5/data/dataset_jpg'
+dst_root   = Path(base_path + '/preprocessed_dataset')
+
 class CellDataset(Dataset):
-    def __init__(self, video_list, path_to_videos, transform):
+    def __init__(self, video_list=train_list, path_to_videos=dst_root, transform=None):
         self.image_paths = []
         self.path_to_videos = path_to_videos
         self.transform = transform
