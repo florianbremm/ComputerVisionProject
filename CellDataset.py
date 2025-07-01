@@ -19,6 +19,10 @@ train_list = _split_data.get("train", [])
 test_list = _split_data.get("test", [])
 val_list = _split_data.get("val", [])
 
+_reduced_path = Path('reduced_videos.json')
+with open(_reduced_path, 'r') as f:
+    _reduced_list = json.load(f)
+
 moco_transform = T.Compose([
     T.RandomHorizontalFlip(p=0.5),      # flip left-right with 50% probability
     T.RandomVerticalFlip(p=0.5),        # flip top-bottom with 50% probability
@@ -33,7 +37,7 @@ base_path = '/scratch/cv-course-group-5/data/dataset_jpg'
 dst_root   = Path(base_path + '/lmdb')
 
 class CellDataset(Dataset):
-    def __init__(self, video_list=train_list, path_to_videos=dst_root, transform=T.ToTensor()):
+    def __init__(self, video_list=_reduced_list, path_to_videos=dst_root, transform=T.ToTensor()):
         self.env = lmdb.open(str(path_to_videos), readonly=True, lock=False)
         with self.env.begin() as txn:
             lmdb_keys = txn.get(b"__keys__").decode().split("\n")
