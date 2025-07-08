@@ -14,7 +14,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import sys
 
-from CellDataset import CellDataset
+from CellDataset import CellDataset, moco_transform
 from MoCoResNetBackbone import MoCoResNetBackbone
 from MoCoV2Loss import MoCoV2Loss
 
@@ -28,10 +28,14 @@ if __name__ == '__main__':
 
     device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
 
+    reduced_path40k = Path(sys.argv[3] if len(sys.argv) >= 4 else 'reduced_videos.json')
+    with open(reduced_path40k, 'r') as f:
+        reduced_list40k = json.load(f)
+
     model = MoCoResNetBackbone()
     model.to(device)
-    
-    dataset = CellDataset()
+
+    dataset = CellDataset(video_list=reduced_list40k, transform=moco_transform)
 
     moco_loss = MoCoV2Loss(device=device)
 
