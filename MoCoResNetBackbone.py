@@ -61,6 +61,19 @@ class MoCoResNetBackbone(nn.Module):
                 self._momentum_update_key_encoder()
             k = self.encoder_k(im_k)
         return q, k
+    
+    def encode_query(self, x):
+        """
+        Returns the 2048-dimensional ResNet features before the projection head.
+        Suitable for clustering, classification, etc.
+        """
+        return self.encoder_q[:-1](x)
+    
+    def encode_query_projected(self, x):
+        """
+        Returns the embeddings after the projection head (used during contrastive training).
+        """
+        return self.encoder_q(x)
 
 def _build_encoder(dim):
     # Define a standard ResNet-50 backbone
