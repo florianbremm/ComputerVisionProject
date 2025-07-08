@@ -68,6 +68,5 @@ def _build_encoder(dim):
     num_features = resnet50.fc.in_features
     encoder = nn.Sequential(*list(resnet50.children())[:-1])  # Remove final FC layer
     msg = encoder.load_state_dict(_new_state_dict, strict=False)
-    print("Loaded keys:", msg)
     projection = nn.Linear(num_features, dim)
     return nn.Sequential(encoder, nn.Flatten(), projection)
