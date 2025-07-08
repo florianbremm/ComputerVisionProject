@@ -65,7 +65,7 @@ if __name__ == '__main__':
         model.load_state_dict(model_state_dict)
         loss_state_dict = torch.load(modelPath / trainingName / f"model_epoch{checkpoint_epoch}.pth")
 
-    for epoch in range(checkpoint_epoch + 1, epochs):
+    for epoch in range(checkpoint_epoch + 1, epochs + 1):
 
         model.train()
         for [keys, queries] in tqdm(dataloader, desc=f"Epoch {epoch}", total=len(dataloader), ncols=100):
