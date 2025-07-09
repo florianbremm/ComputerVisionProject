@@ -80,7 +80,7 @@ if __name__ == '__main__':
             query_encodings, key_encodings = model(queries, keys)
 
             loss = moco_loss(query_encodings, key_encodings)
-            losses[epoch].append(loss.item())
+            losses[epoch-1].append(loss.item())
 
             optimizer.zero_grad()
             loss.backward()
