@@ -53,14 +53,31 @@ for ann in annos:
         labels[video_name][frame_nmbr] = {}
     if cell_id not in labels[video_name][frame_nmbr]:
         # if ann['time_of_death'] is None:
-        #     labels[video_name][frame_nmbr][cell_id] = 150
+        #     labels[video_name][frame_nmbr][cell_id] = 200
         # else:
         #     labels[video_name][frame_nmbr][cell_id] = ann['time_of_death'] - ann['time_step']
 
+        # if ann['time_of_death'] is None:
+        #     if ann['time_of_division'] is None:
+        #         labels[video_name][frame_nmbr][cell_id] = 1 # alive
+        #     else:
+        #         if ann['time_step'] < ann['time_of_division'] - 10:
+        #             labels[video_name][frame_nmbr][cell_id] = 2 # dividing
+        #         else:
+        #             labels[video_name][frame_nmbr][cell_id] = 1 # alive
+        # else:
+        #     if ann['time_step'] < ann['time_of_death'] - 10:
+        #             labels[video_name][frame_nmbr][cell_id] = 1 # alive
+        #     else:
+        #         labels[video_name][frame_nmbr][cell_id] = 0 # dead
+
         if ann['time_of_death'] is None:
-            labels[video_name][frame_nmbr][cell_id] = 1
+            labels[video_name][frame_nmbr][cell_id] = 1 # alive
         else:
-            labels[video_name][frame_nmbr][cell_id] = int(ann['time_step'] < ann['time_of_death'] - 6)
+            if ann['time_step'] < ann['time_of_death'] - 10:
+                    labels[video_name][frame_nmbr][cell_id] = 1 # alive
+            else:
+                labels[video_name][frame_nmbr][cell_id] = 0 # dead
 
 moco_transform = T.Compose([
     T.RandomHorizontalFlip(p=0.5),      # flip left-right with 50% probability
