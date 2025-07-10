@@ -28,33 +28,34 @@ if __name__ == '__main__':
 
     device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
 
-    reduced_path40k = Path(sys.argv[3] if len(sys.argv) >= 4 else 'reduced_videos.json')
-    with open(reduced_path40k, 'r') as f:
-        reduced_list40k = json.load(f)
+    video_path = Path(sys.argv[3] if len(sys.argv) >= 4 else 'reduced_videos.json')
+    with open(video_path, 'r') as f:
+        video_list = json.load(f)
 
     model = MoCoResNetBackbone()
     model.to(device)
 
-    dataset = CellDataset(video_list=reduced_list40k, transform=moco_transform)
+    dataset = CellDataset(video_list=video_list, transform=moco_transform)
 
-    moco_loss = MoCoV2Loss(device=device)
+    moco_loss = MoCoV2Loss(device=device, queue_size=8129)
 
-    epochs = 50
-    batch_size = 64
-    learning_rate = 0.001
+    epochs = 20
+    batch_size = 128
+    learning_rate = 0.005
     momentum = 0.9
 
     optimizer = torch.optim.SGD(
         model.parameters(),
         lr=learning_rate,
-        momentum=momentum
+        momentum=momentum,
+        weight_decay=1e-4,
     )
 
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=8,        # Adjust to CPU core count
+        num_workers=16,        # Adjust to CPU core count
         pin_memory=True,       # Enables fast transfer to GPU
     )
 
@@ -67,7 +68,8 @@ if __name__ == '__main__':
     if checkpoint_epoch > 0:
         model_state_dict = torch.load(modelPath / trainingName / f"model_epoch{checkpoint_epoch}.pth")
         model.load_state_dict(model_state_dict)
-        loss_state_dict = torch.load(modelPath / trainingName / f"model_epoch{checkpoint_epoch}.pth")
+        loss_state_dict = torch.load(modelPath / trainingName / f"loss_epoch{checkpoint_epoch}.pth")
+        moco_loss.load_state_dict(loss_state_dict)
 
     for epoch in range(checkpoint_epoch + 1, epochs + 1):
 
@@ -91,4 +93,4 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), modelPath / trainingName / f"model_epoch{epoch}.pth")
             torch.save(moco_loss.state_dict(), modelPath / trainingName / f"loss_epoch{epoch}.pth")
 
-        print(f"Epoch {epoch} loss: {sum(losses[epoch]) / len(losses[epoch])} ")
+        print(f"Epoch {epoch} loss: {sum(losses[epoch - 1]) / len(losses[epoch - 1])} ")
