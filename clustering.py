@@ -76,12 +76,26 @@ def extract_and_reduce_embeddings(checkpoint_path, val_list, device, label_mode=
             reduced = reducer.fit_transform(embeddings)
             reduced_results[name] = reduced
 
+    plot_cluster_projections(reduced_results=reduced_results, cluster_labels=labels, method_name='GT-Labels-dead-alive', save_dir='plots')
+
     return reduced_results, labels
 
 def plot_cluster_projections(reduced_results, cluster_labels, method_name="Unknown", save_dir=None):
     for reducer_name, X_2d in reduced_results.items():
         plt.figure(figsize=(7, 6))
-        plt.scatter(X_2d[:, 0], X_2d[:, 1], c=cluster_labels, s=5, alpha=0.6)
+        unique_labels = np.unique(cluster_labels)
+
+        for label in unique_labels:
+            mask = cluster_labels == label
+            plt.scatter(
+                X_2d[mask, 0], X_2d[mask, 1],
+                s=5,
+                alpha=0.3,
+                label=f"{label}" if label != -1 else "Noise"
+            )
+
+        plt.legend(title="Cluster Label", loc="best", markerscale=3)   
+        # plt.scatter(X_2d[:, 0], X_2d[:, 1], c=cluster_labels, cmap='viridis', s=5, alpha=0.6)
         plt.title(f"{method_name} clustering shown via {reducer_name}")
         plt.xlabel("Component 1")
         plt.ylabel("Component 2")
@@ -92,7 +106,7 @@ def plot_cluster_projections(reduced_results, cluster_labels, method_name="Unkno
         else:
             plt.show()
 
-def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, model_path, val_list, reduced_results=None, batch_size=64):
+def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, model_path, val_list, reduced_results=None, batch_size=64, pca_dimension=10):
     print(f"\n=== Running for label_mode='{label_mode}' | num_frames={num_frames} ===")
     
     # 1. Load model
@@ -103,7 +117,7 @@ def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, m
     model.eval()
 
     # 2. Init dataset and labels
-    dataset = CellDataset(video_list=val_list[:10], mode='inference', label_mode=label_mode, num_frames_labels=num_frames)
+    dataset = CellDataset(video_list=val_list, mode='inference', label_mode=label_mode, num_frames_labels=num_frames)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
     # 3. Extract embeddings
@@ -120,7 +134,7 @@ def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, m
     labels = np.concatenate(all_labels, axis=0)
 
     # 4. Apply PCA
-    pca = PCA(n_components=10)
+    pca = PCA(n_components=pca_dimension)
     X_pca = pca.fit_transform(embeddings)
 
     # 5. Run clustering with different settings
@@ -131,7 +145,8 @@ def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, m
         labels_pred = model.fit_predict(X_pca)
 
         if reduced_results:
-            plot_cluster_projections(reduced_results, labels_pred, method_name=method_name, save_dir="plots")
+            method_name_pca = method_name+'_pca_'+str(pca_dimension)
+            plot_cluster_projections(reduced_results, labels_pred, method_name=method_name_pca, save_dir="plots")
 
         sil, db = evaluate_unsupervised(X_pca, labels_pred)
         ari, nmi = evaluate_supervised(labels, labels_pred)
@@ -167,31 +182,39 @@ if __name__ == '__main__':
     val_list = _split_data.get("val", [])
     # Dimensionality reduction methods
     reducers = {
-        "PCA": PCA(n_components=2),
-        "t-SNE": TSNE(n_components=2, perplexity=30, random_state=42),
-        "UMAP": umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1, random_state=42)
-        #  # --- t-SNE ---
-        # "tSNE_perp10": TSNE(n_components=2, perplexity=10, n_iter=1500, learning_rate=300, init="pca", metric="euclidean", random_state=42),
-        # "tSNE_perp30": TSNE(n_components=2, perplexity=30, n_iter=1500, learning_rate=300, init="pca", metric="euclidean", random_state=42),
-        # "tSNE_perp50_cosine": TSNE(n_components=2, perplexity=50, n_iter=1500, learning_rate=300, init="pca", metric="cosine", random_state=42),
+        # === PCA (Linear Baseline) ===
+        "PCA_2D": PCA(n_components=2),
 
-        # # --- UMAP ---
-        # "UMAP_n15_d0.1": umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1, metric="euclidean", random_state=42),
-        # "UMAP_n30_d0.0": umap.UMAP(n_components=2, n_neighbors=30, min_dist=0.0, metric="euclidean", random_state=42),
-        # "UMAP_n50_d0.3_cosine": umap.UMAP(n_components=2, n_neighbors=50, min_dist=0.3, metric="cosine", random_state=42),
-        # "UMAP_n100_d0.5_corr": umap.UMAP(n_components=2, n_neighbors=100, min_dist=0.5, metric="correlation", random_state=42),
+        # === t-SNE with Cosine Distance ===
+        "tSNE_perp10_cos": TSNE(n_components=2, perplexity=10, n_iter=1500,
+                                learning_rate=300, init="pca", metric="cosine", random_state=42),
+        "tSNE_perp30_cos": TSNE(n_components=2, perplexity=30, n_iter=1500,
+                                learning_rate=300, init="pca", metric="cosine", random_state=42),
+        "tSNE_perp50_cos": TSNE(n_components=2, perplexity=50, n_iter=1500,
+                                learning_rate=300, init="pca", metric="cosine", random_state=42),
+
+        # === Cosine Metric ===
+        "UMAP_15_0.1_cos": umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.2, metric="cosine", random_state=42),
+        "UMAP_30_0.0_cos": umap.UMAP(n_components=2, n_neighbors=30, min_dist=0.2, metric="cosine", random_state=42),
+        "UMAP_50_0.3_cos": umap.UMAP(n_components=2, n_neighbors=50, min_dist=0.3, metric="cosine", random_state=42),
+        "UMAP_100_0.5_cos": umap.UMAP(n_components=2, n_neighbors=100, min_dist=0.8, metric="cosine", random_state=42),
+
+        # === Correlation Metric ===
+        "UMAP_30_0.1_corr": umap.UMAP(n_components=2, n_neighbors=30, min_dist=0.1, metric="correlation", random_state=42),
+        "UMAP_50_0.0_corr": umap.UMAP(n_components=2, n_neighbors=50, min_dist=0.3, metric="correlation", random_state=42),
+        "UMAP_100_0.3_corr": umap.UMAP(n_components=2, n_neighbors=100, min_dist=0.7, metric="correlation", random_state=42),
     }
     # Define configs (you can expand this later)
     cluster_2 = {
         "HDBSCAN": lambda: HDBSCAN(min_cluster_size=100),
         "GMM-2": lambda: GaussianMixture(n_components=2, covariance_type='full', random_state=42),
-        #"GMM": GaussianMixture(n_components=2, covariance_type='full', random_state=42, weights_init=[0.96, 0.04]),
+        "GMM-2_weights": GaussianMixture(n_components=2, covariance_type='full', random_state=42, weights_init=[0.96, 0.04]),
         "Agglomerative-2": lambda: AgglomerativeClustering(n_clusters=2, linkage='complete'),    
 
-        # "Agglomerative-Ward-2": AgglomerativeClustering(n_clusters=2, linkage="ward"),
-        # "Agglomerative-Complete-2": AgglomerativeClustering(n_clusters=2, linkage="complete"),
-        # "Agglomerative-Average-2": AgglomerativeClustering(n_clusters=2, linkage="average"),
-        # "Agglomerative-Single-2": AgglomerativeClustering(n_clusters=2, linkage="single"),
+        "Agglomerative-Ward-2": AgglomerativeClustering(n_clusters=2, linkage="ward"),
+        "Agglomerative-Complete-2": AgglomerativeClustering(n_clusters=2, linkage="complete"),
+        "Agglomerative-Average-2": AgglomerativeClustering(n_clusters=2, linkage="average"),
+        "Agglomerative-Single-2": AgglomerativeClustering(n_clusters=2, linkage="single"),
     
     }
 
@@ -200,14 +223,14 @@ if __name__ == '__main__':
         "GMM-3": lambda: GaussianMixture(n_components=3, covariance_type='full', random_state=42),
         "Agglomerative-3": lambda: AgglomerativeClustering(n_clusters=3, linkage='complete'),
         
-        # "Agglomerative-Ward-3": AgglomerativeClustering(n_clusters=3, linkage="ward"),
-        # "Agglomerative-Complete-3": AgglomerativeClustering(n_clusters=3, linkage="complete"),
-        # "Agglomerative-Average-3": AgglomerativeClustering(n_clusters=3, linkage="average"),
-        # "Agglomerative-Single-3": AgglomerativeClustering(n_clusters=3, linkage="single"),
+        "Agglomerative-Ward-3": AgglomerativeClustering(n_clusters=3, linkage="ward"),
+        "Agglomerative-Complete-3": AgglomerativeClustering(n_clusters=3, linkage="complete"),
+        "Agglomerative-Average-3": AgglomerativeClustering(n_clusters=3, linkage="average"),
+        "Agglomerative-Single-3": AgglomerativeClustering(n_clusters=3, linkage="single"),
     }
     reduced_results, labels = extract_and_reduce_embeddings(
         checkpoint_path=checkpoint_path,
-        val_list=val_list[:10],
+        val_list=val_list[:16],
         device=device,
         label_mode='dead_alive',
         num_frames_labels=10,
@@ -223,7 +246,7 @@ if __name__ == '__main__':
         cluster_configs=cluster_2,
         device=device,
         model_path=checkpoint_path,
-        val_list=val_list[:10],
+        val_list=val_list[:16],
         reduced_results=reduced_results,
         batch_size=batch_size
     )
@@ -235,7 +258,7 @@ if __name__ == '__main__':
         cluster_configs=cluster_3,
         device=device,
         model_path=checkpoint_path,
-        val_list=val_list[:10],
+        val_list=val_list[:16],
         reduced_results=reduced_results,
         batch_size=batch_size
     )
