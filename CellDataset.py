@@ -36,49 +36,6 @@ images = annos_dict.get('images', [])
 video_id2name = {v["id"]: v["name"] for v in videos}
 image_by_id = {img["id"]: img for img in images} 
 
-labels = {}
-
-for ann in annos:
-    video_id = ann["video_id"]
-    image_id = ann["image_id"]
-    cell_id = str(ann["cell_id"]).zfill(3)
-
-    frame_nmbr = image_by_id[image_id]['file_name'][-7:-4]
-    video_name = video_id2name[video_id]
-    
-    # if there is no entry yet in the dictionary
-    if video_name not in labels:
-        labels[video_name] = {}
-    if frame_nmbr not in labels[video_name]:
-        labels[video_name][frame_nmbr] = {}
-    if cell_id not in labels[video_name][frame_nmbr]:
-        # if ann['time_of_death'] is None:
-        #     labels[video_name][frame_nmbr][cell_id] = 200
-        # else:
-        #     labels[video_name][frame_nmbr][cell_id] = ann['time_of_death'] - ann['time_step']
-
-        # if ann['time_of_death'] is None:
-        #     if ann['time_of_division'] is None:
-        #         labels[video_name][frame_nmbr][cell_id] = 1 # alive
-        #     else:
-        #         if ann['time_step'] < ann['time_of_division'] - 10:
-        #             labels[video_name][frame_nmbr][cell_id] = 2 # dividing
-        #         else:
-        #             labels[video_name][frame_nmbr][cell_id] = 1 # alive
-        # else:
-        #     if ann['time_step'] < ann['time_of_death'] - 10:
-        #             labels[video_name][frame_nmbr][cell_id] = 1 # alive
-        #     else:
-        #         labels[video_name][frame_nmbr][cell_id] = 0 # dead
-
-        if ann['time_of_death'] is None:
-            labels[video_name][frame_nmbr][cell_id] = 1 # alive
-        else:
-            if ann['time_step'] < ann['time_of_death'] - 10:
-                    labels[video_name][frame_nmbr][cell_id] = 1 # alive
-            else:
-                labels[video_name][frame_nmbr][cell_id] = 0 # dead
-
 moco_transform = T.Compose([
     T.RandomHorizontalFlip(p=0.5),      # flip left-right with 50% probability
     T.RandomVerticalFlip(p=0.5),        # flip top-bottom with 50% probability
@@ -100,10 +57,11 @@ base_path = '/scratch/cv-course-group-5/data/dataset_jpg'
 dst_root   = Path(base_path + '/lmdb')
 
 class CellDataset(Dataset):
-    def __init__(self, video_list=_reduced_list, path_to_videos=dst_root, transform=default_transform, mode='training'):
+    def __init__(self, video_list=_reduced_list, path_to_videos=dst_root, transform=default_transform, mode='training', label_mode='dead_alive', num_frames_labels=0):
         self.env = lmdb.open(str(path_to_videos), readonly=True, lock=False)
         with self.env.begin() as txn:
             lmdb_keys = txn.get(b"__keys__").decode().split("\n")
+        self.init_labels(label_mode=label_mode, num_frames=num_frames_labels)
         self.transform = transform
         self.keys = []
         self.mode = mode
@@ -114,6 +72,65 @@ class CellDataset(Dataset):
                 if key.startswith(f"{video_name}/"):
                     self.keys.append(key)
         print(len(self.keys))
+
+    def init_labels(self, label_mode='dead_alive', num_frames=0):
+        self.labels = {}
+
+        for ann in annos:
+            video_id = ann["video_id"]
+            image_id = ann["image_id"]
+            cell_id = str(ann["cell_id"]).zfill(3)
+
+            frame_nmbr = image_by_id[image_id]['file_name'][-7:-4]
+            video_name = video_id2name[video_id]
+            
+            # if there is no entry yet in the dictionary
+            if video_name not in self.labels:
+                self.labels[video_name] = {}
+
+            if frame_nmbr not in self.labels[video_name]:
+                self.labels[video_name][frame_nmbr] = {}
+
+            # if this cell_id doesnt yet have a label for that frame
+            if cell_id not in self.labels[video_name][frame_nmbr]:
+
+                # label mode frames_till_death returns amount of frames until the cell dies 
+                if label_mode == 'frames_till_death':
+                    if ann['time_of_death'] is None:
+                        self.labels[video_name][frame_nmbr][cell_id] = 200
+                    else:
+                        self.labels[video_name][frame_nmbr][cell_id] = ann['time_of_death'] - ann['time_step']
+
+                # label mode dead_alive_dividing returns either 0: dead, 1: alive, 2: dividing
+                elif label_mode == 'dead_alive_dividing':
+                    if ann['time_of_death'] is None:
+                        if ann['time_of_division'] is None:
+                            self.labels[video_name][frame_nmbr][cell_id] = 1 # alive
+                        else:
+                            if ann['time_step'] < ann['time_of_division'] - num_frames:
+                                self.labels[video_name][frame_nmbr][cell_id] = 2 # dividing
+                            else:
+                                self.labels[video_name][frame_nmbr][cell_id] = 1 # alive
+                    else:
+                        if ann['time_step'] < ann['time_of_death'] - num_frames:
+                                self.labels[video_name][frame_nmbr][cell_id] = 1 # alive
+                        else:
+                            self.labels[video_name][frame_nmbr][cell_id] = 0 # dead
+
+                # label mode dead_alive returns either 0: dead, 1: alive
+                elif label_mode == 'dead_alive':
+                    if ann['time_of_death'] is None:
+                        self.labels[video_name][frame_nmbr][cell_id] = 1 # alive
+                    else:
+                        if ann['time_step'] < ann['time_of_death'] - num_frames:
+                            self.labels[video_name][frame_nmbr][cell_id] = 1 # alive
+                        else:
+                            self.labels[video_name][frame_nmbr][cell_id] = 0 # dead
+                
+                # if given label mode is not implemented
+                else:
+                    raise ValueError(f"Unsupported label_mode: '{label_mode}'. "
+                                     f"Expected one of: 'frames_till_death', 'dead_alive_dividing', 'dead_alive'.")
 
 
     def __len__(self):
@@ -132,7 +149,7 @@ class CellDataset(Dataset):
 
         if self.mode == 'inference':
             video_name, frame_nmbr, cell_id = self.keys[idx].split('.')[0].split('/')
-            label = labels[video_name][frame_nmbr][cell_id]
+            label = self.labels[video_name][frame_nmbr][cell_id]
             return self.transform(img), torch.tensor(label)
 
         view1 = self.transform(img)
