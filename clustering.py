@@ -101,7 +101,7 @@ def plot_cluster_projections(reduced_results, cluster_labels, method_name="Unkno
                 label=f"{label}" if label != -1 else "Noise"
             )
 
-        plt.legend(title="Cluster Label", loc="best", markerscale=3)   
+        plt.legend(title="Cluster Label", loc='upper right', markerscale=3)   
         # plt.scatter(X_2d[:, 0], X_2d[:, 1], c=cluster_labels, cmap='viridis', s=5, alpha=0.6)
         plt.title(f"{method_name} clustering shown via {reducer_name}")
         plt.xlabel("Component 1")
