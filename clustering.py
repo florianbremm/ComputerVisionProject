@@ -76,7 +76,8 @@ def extract_and_reduce_embeddings(checkpoint_path, val_list, device, label_mode=
             reduced = reducer.fit_transform(embeddings)
             reduced_results[name] = reduced
 
-    plot_cluster_projections(reduced_results=reduced_results, cluster_labels=labels, method_name='GT-Labels-dead-alive', save_dir='plots', gt=True)
+    method_name_label = 'GT-Labels-' + label_mode
+    plot_cluster_projections(reduced_results=reduced_results, cluster_labels=labels, method_name=method_name_label, save_dir='plots', gt=True)
 
     return reduced_results, labels
 
