@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     moco_loss = MoCoV2Loss(device=device, queue_size=8129)
 
-    epochs = 20
+    epochs = 50
     batch_size = 128
     learning_rate = 0.005
     momentum = 0.9
