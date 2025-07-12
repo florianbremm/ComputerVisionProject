@@ -175,7 +175,7 @@ def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, m
 
 if __name__ == '__main__':
     # ========== Configuration ==========
-    checkpoint_path = Path("/scratch/cv-course-group-5/models/training4/model_epoch50.pth")  # adjust if needed
+    checkpoint_path = Path("/scratch/cv-course-group-5/models/training5/model_epoch25.pth")  # adjust if needed
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     batch_size = 64
 
@@ -207,7 +207,7 @@ if __name__ == '__main__':
         # === Correlation Metric ===
         "UMAP_30_0.1_corr": umap.UMAP(n_components=2, n_neighbors=30, min_dist=0.2, metric="correlation", random_state=42),
     }
-    # Define configs (you can expand this later)
+    # Define configs
     cluster_2 = {
         "HDBSCAN": lambda: HDBSCAN(min_cluster_size=70, metric='cosine'),
         "GMM-2": lambda: GaussianMixture(n_components=2, covariance_type='full', random_state=42),
