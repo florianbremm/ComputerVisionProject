@@ -1,3 +1,5 @@
 # Python cache folders
 __pycache__/
 local_analysis/
+plots/old_plots/
+plots/failed_run/
