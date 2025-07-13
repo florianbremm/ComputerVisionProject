@@ -28,6 +28,11 @@ from sklearn.metrics import (
 # os.chdir('ComputerVisionProject')
 
 def evaluate_unsupervised(X, labels_pred):
+    """
+    :param X: Embeddings
+    :param labels_pred: assigned cluster
+    :return: silhouette_score, davies_bouldin_score
+    """
     if len(set(labels_pred)) > 1:
         sil = silhouette_score(X, labels_pred)
         db = davies_bouldin_score(X, labels_pred)
@@ -36,11 +41,27 @@ def evaluate_unsupervised(X, labels_pred):
     return sil, db
 
 def evaluate_supervised(y_true, y_pred):
+    """
+    :param y_true: labels from ground truth mask
+    :param y_pred: assigned cluster
+    :return: adjusted_rand_score, normalized_mutual_info_score
+    """
     ari = adjusted_rand_score(y_true, y_pred)
     nmi = normalized_mutual_info_score(y_true, y_pred)
     return ari, nmi
 
 def extract_and_reduce_embeddings(checkpoint_path, val_list, device, label_mode='dead_alive', num_frames_labels=10, batch_size=64, reducers=None):
+    """
+    embedd all cell-images from a list of videos, reduce their dimensionality and plot them with their ground truth
+    :param checkpoint_path: the model to use for embedding
+    :param val_list: the video list
+    :param device: cuda or cpu
+    :param label_mode: "dead_alive" / "dead_alive_dividing" / "frames_till_death" whether to differentiate between alive and dividing for the label ("dead_alive_dividing") or to label a cell as dead before its actual death ("frames_till_death")
+    :param num_frames_labels: how many frames before it's annotated dead a cell should be labeled as dead
+    :param batch_size: batch size for inference
+    :param reducers: dict[str, dimensionality reduction methods to use]
+    :return:
+    """
     # 1. Load model
     model = MoCoResNetBackbone()
     model.to(device)
@@ -82,6 +103,14 @@ def extract_and_reduce_embeddings(checkpoint_path, val_list, device, label_mode=
     return reduced_results, labels
 
 def plot_cluster_projections(reduced_results, cluster_labels, method_name="Unknown", save_dir=None, gt=False):
+    """
+    plots cluster for different dimensionality reduction methods
+    :param reduced_results: embeddings after dimensionality reduction
+    :param cluster_labels: assigned cluster
+    :param method_name: Name of method
+    :param save_dir: where to save the figure
+    :return:
+    """
     for reducer_name, X_2d in reduced_results.items():
         plt.figure(figsize=(7, 6))
         unique_labels = np.unique(cluster_labels)
@@ -116,6 +145,19 @@ def plot_cluster_projections(reduced_results, cluster_labels, method_name="Unkno
             plt.close()
 
 def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, model_path, val_list, reduced_results=None, batch_size=64, pca_dimension=10):
+    """
+    Run a clustering
+    :param label_mode: "dead_alive" / "dead_alive_dividing" / "frames_till_death" whether to differentiate between alive and dividing for the label ("dead_alive_dividing") or to label a cell as dead before its actual death ("frames_till_death")
+    :param num_frames_labels: how many frames before it's annotated dead a cell should be labeled as dead
+    :param cluster_configs: dict [str, lamda -> Clustering Methode]
+    :param device: cuda or cpu
+    :param model_path: where to save the model
+    :param val_list: the video list
+    :param reduced_results: embeddings after dimensionality reduction
+    :param batch_size: batch size for inference
+    :param pca_dimension: dimensionality of PCA
+    :return:
+    """
     print(f"\n=== Running for label_mode='{label_mode}' | num_frames={num_frames} ===")
     
     # 1. Load model
