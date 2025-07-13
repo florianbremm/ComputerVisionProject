@@ -8,7 +8,7 @@ import io
 import torch
 import lmdb
 
-_json_path = Path('train_test_split.json')
+_json_path = Path('video_lists/train.json')
 
 # Load the train Test split
 with open(_json_path, 'r') as f:
@@ -20,7 +20,7 @@ test_list = _split_data.get("test", [])
 val_list = _split_data.get("val", [])
 
 # also loading the reduced video list with 100k images from the test set
-_reduced_path = Path('reduced_videos.json')
+_reduced_path = Path('video_lists/reduced.json')
 with open(_reduced_path, 'r') as f:
     _reduced_list = json.load(f)
 

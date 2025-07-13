@@ -18,6 +18,9 @@ for k, v in _state_dict.items():
 
 # Wrap in a model that outputs flattened features
 class MoCoResNetBackbone(nn.Module):
+    """
+    class for the ResNet-50 Backbone
+    """
     def __init__(self, dim=2048, momentum=0.999):
         super().__init__()
         self.momentum = momentum
