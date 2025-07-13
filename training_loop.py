@@ -30,7 +30,7 @@ if __name__ == '__main__':
     device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else "cpu")
 
     # load video list specified in the parameters
-    video_path = Path(sys.argv[3] if len(sys.argv) >= 4 else 'reduced_videos.json')
+    video_path = Path(sys.argv[3] if len(sys.argv) >= 4 else 'video_list/reduced_videos.json')
     with open(video_path, 'r') as f:
         video_list = json.load(f)
 
