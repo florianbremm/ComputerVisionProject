@@ -176,7 +176,7 @@ def run_clustering_evaluation(label_mode, num_frames, cluster_configs, device, m
 
 if __name__ == '__main__':
     # ========== Configuration ==========
-    checkpoint_path = Path("/scratch/cv-course-group-5/models/training5/model_epoch25.pth")  # adjust if needed
+    checkpoint_path = Path("/scratch/cv-course-group-5/models/training5/model_epoch50.pth")  # adjust if needed
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     batch_size = 64
 
@@ -196,9 +196,9 @@ if __name__ == '__main__':
         "PCA_2D": PCA(n_components=2),
 
         # === t-SNE with Cosine Distance ===
-        "tSNE_perp30_cos": TSNE(n_components=2, perplexity=30, n_iter=1500,
+        "tSNE_perp30_cos": TSNE(n_components=2, perplexity=30, max_iter=1500,
                                 learning_rate=300, init="pca", metric="cosine", random_state=42),
-        "tSNE_perp50_cos": TSNE(n_components=2, perplexity=50, n_iter=1500,
+        "tSNE_perp50_cos": TSNE(n_components=2, perplexity=50, max_iter=1500,
                                 learning_rate=300, init="pca", metric="cosine", random_state=42),
 
         # === Cosine Metric ===
@@ -228,7 +228,7 @@ if __name__ == '__main__':
         val_list=val_list[:val_list_end],
         device=device,
         label_mode='dead_alive',
-        num_frames_labels=10,
+        num_frames_labels=0,
         batch_size=64,
         reducers=reducers
     )
@@ -237,7 +237,7 @@ if __name__ == '__main__':
 
     r = run_clustering_evaluation(
         label_mode='dead_alive',
-        num_frames=10,
+        num_frames=0,
         cluster_configs=cluster_2,
         device=device,
         model_path=checkpoint_path,
@@ -249,7 +249,7 @@ if __name__ == '__main__':
 
     r = run_clustering_evaluation(
         label_mode='dead_alive_dividing',
-        num_frames=10,
+        num_frames=0,
         cluster_configs=cluster_3,
         device=device,
         model_path=checkpoint_path,
