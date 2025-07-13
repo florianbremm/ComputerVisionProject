@@ -45,7 +45,7 @@ if __name__ == '__main__':
     momentum = 0.9
 
     optimizer = torch.optim.SGD(
-        model.parameters(),
+        model.encoder_q.parameters(),
         lr=learning_rate,
         momentum=momentum,
         weight_decay=1e-4,
