@@ -24,5 +24,9 @@ Florian Bremm
 ## License
 For academic use only. Not licensed for commercial reuse.
 
-## Execute Training
+## Execute Pipeline
+Execute the preprocessing.py Notebook
+
 `python training.py {training_name} {gpu number} {path to video list}`
+
+`python clustering.py`
